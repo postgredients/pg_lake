@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: ghcr.io/snowflake-labs/pg-lake-ci-pg-almalinux:${{ inputs.image_tag }}
+      image: ghcr.io/${{ github.repository_owner }}/pg-lake-ci-pg-almalinux:${{ inputs.image_tag }}
       options: --user 1001 --shm-size=128MB
       volumes:
         - /usr/local:/host/usr/local
