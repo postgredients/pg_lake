@@ -127,8 +127,9 @@ RUN if [ "$BASE_IMAGE_OS" = "debian" ]; then \
         fi && \
         wget https://download.oracle.com/java/21/latest/jdk-21_linux-${ARCH}_bin.tar.gz && \
         mkdir -p /usr/lib/jvm && \
+        JDK_DIR=$(tar -tzf jdk-21_linux-${ARCH}_bin.tar.gz | head -1 | cut -d/ -f1) && \
         tar -xzf jdk-21_linux-${ARCH}_bin.tar.gz -C /usr/lib/jvm/ && \
-        mv /usr/lib/jvm/jdk-21.0.10 /usr/lib/jvm/java-21-openjdk && \
+        mv /usr/lib/jvm/${JDK_DIR} /usr/lib/jvm/java-21-openjdk && \
         rm jdk-21_linux-${ARCH}_bin.tar.gz; \
     fi
 
