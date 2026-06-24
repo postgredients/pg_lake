@@ -208,6 +208,8 @@ pg_lake_table_validator(PG_FUNCTION_ARGS)
 									   "URLs are currently supported for the \"path\" "
 									   "option.")));
 
+			ErrorIfDisallowedEndpoint(path);
+
 			foundServerPath = true;
 		}
 		else if (catalog == ForeignTableRelationId && strcmp(def->defname, "location") == 0)
@@ -219,6 +221,8 @@ pg_lake_table_validator(PG_FUNCTION_ARGS)
 								errmsg("pg_lake_table: only s3://, gs://, az://, azure://, and abfss:// "
 									   "URLs are currently supported for the \"location\" "
 									   "option.")));
+
+			ErrorIfDisallowedEndpoint(value);
 
 			foundLocation = true;
 		}
@@ -737,6 +741,8 @@ pg_lake_iceberg_validator(PG_FUNCTION_ARGS)
 						(errcode(ERRCODE_SYNTAX_ERROR),
 						 errmsg("s3 configuration parameters are not allowed in the \"location\" "
 								"option for pg_lake_iceberg tables")));
+
+			ErrorIfDisallowedEndpoint(location);
 
 			locationProvided = true;
 		}

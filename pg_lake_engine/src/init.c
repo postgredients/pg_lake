@@ -62,6 +62,9 @@ bool		EnableHeavyAsserts = false;
 /* pg_lake.stage_location setting */
 char	   *PgLakeStageLocation = NULL;
 
+/* pg_lake.allowed_endpoint_suffixes setting */
+char	   *PgLakeAllowedEndpointSuffixes = NULL;
+
 
 /*
  * _PG_init is the entry-point for the library.
@@ -196,6 +199,23 @@ _PG_init(void)
 							   0,
 							   PgLakeStageLocationCheckHook,
 							   NULL, NULL);
+
+	DefineCustomStringVariable(
+							   "pg_lake.allowed_endpoint_suffixes",
+							   gettext_noop("Comma-separated list of hostname suffixes allowed as "
+											"http(s):// and hf:// endpoints."),
+							   gettext_noop("When non-empty, any http://, https:// or hf:// URL whose "
+											"host does not end with one of the listed suffixes is "
+											"rejected (e.g. 'storage.yandexcloud.net'). An empty "
+											"string (the default) disables the restriction. The "
+											"endpoint used for s3://, gs:// and az:// URLs is "
+											"determined by the pgduck_server secrets, not by this "
+											"setting."),
+							   &PgLakeAllowedEndpointSuffixes,
+							   "",
+							   PGC_SUSET,
+							   0,
+							   NULL, NULL, NULL);
 
 	if (QueryEngineEnabled)
 	{

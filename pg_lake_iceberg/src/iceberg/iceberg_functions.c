@@ -53,6 +53,7 @@ iceberg_metadata(PG_FUNCTION_ARGS)
 	}
 
 	CheckURLReadAccess();
+	ErrorIfDisallowedEndpoint(metadataUri);
 
 	char	   *tableMetadataText = GetTextFromURI(metadataUri);
 	Datum		jsonbDatum = DirectFunctionCall1(jsonb_in, PointerGetDatum(tableMetadataText));
@@ -75,6 +76,7 @@ iceberg_files(PG_FUNCTION_ARGS)
 	}
 
 	CheckURLReadAccess();
+	ErrorIfDisallowedEndpoint(metadataUri);
 
 	ReturnSetInfo *rsinfo = (ReturnSetInfo *) fcinfo->resultinfo;
 
@@ -148,6 +150,7 @@ iceberg_snapshots(PG_FUNCTION_ARGS)
 	}
 
 	CheckURLReadAccess();
+	ErrorIfDisallowedEndpoint(metadataUri);
 
 	ReturnSetInfo *rsinfo = (ReturnSetInfo *) fcinfo->resultinfo;
 

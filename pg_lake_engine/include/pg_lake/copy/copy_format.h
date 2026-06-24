@@ -94,6 +94,7 @@ extern PGDLLEXPORT const char *FormatToFileExtension(CopyDataFormat format,
 													 CopyDataCompression compression);
 
 extern PGDLLEXPORT bool IsSupportedURL(const char *path);
+extern PGDLLEXPORT void ErrorIfDisallowedEndpoint(const char *path);
 
 extern PGDLLEXPORT char *GetPgLakeStageLocation(void);
 extern PGDLLEXPORT char *ResolveStageURL(const char *path);

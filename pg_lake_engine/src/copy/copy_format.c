@@ -442,6 +442,152 @@ IsSupportedURL(const char *path)
 
 
 /*
+ * LowerCaseInPlace ASCII-lowercases a string in place. Hostnames are
+ * case-insensitive, so we normalize before suffix matching to avoid trivial
+ * bypasses such as "STORAGE.YANDEXCLOUD.NET".
+ */
+static void
+LowerCaseInPlace(char *str)
+{
+	for (; *str != '\0'; str++)
+	{
+		if (*str >= 'A' && *str <= 'Z')
+			*str += 'a' - 'A';
+	}
+}
+
+
+/*
+ * ErrorIfDisallowedEndpoint enforces the pg_lake.allowed_endpoint_suffixes
+ * GUC. When that GUC is non-empty, http://, https:// and hf:// URLs are only
+ * accepted if their host ends with one of the configured suffixes (matched on
+ * a dot boundary). This is the main lever a managed service has to prevent
+ * server-side request forgery to arbitrary hosts through pgduck_server's
+ * httpfs.
+ *
+ * s3://, gs:// and az:// URLs are intentionally not restricted here: their
+ * effective network endpoint is set by the pgduck_server secret, which is not
+ * user-controllable, so the bucket/container name in the URL is not a host.
+ */
+void
+ErrorIfDisallowedEndpoint(const char *path)
+{
+	const char *host;
+	const char *hostEnd;
+	const char *p;
+	const char *at = NULL;
+	char	   *hostname;
+	char	   *list;
+	char	   *token;
+	bool		allowed = false;
+
+	if (PgLakeAllowedEndpointSuffixes == NULL ||
+		PgLakeAllowedEndpointSuffixes[0] == '\0')
+		return;
+
+	if (path == NULL)
+		return;
+
+	if (strncmp(path, HUGGING_FACE_URL_PREFIX, strlen(HUGGING_FACE_URL_PREFIX)) == 0)
+	{
+		/*
+		 * hf:// URLs do not carry a host; DuckDB's huggingface extension
+		 * always fetches from huggingface.co, so match against that.
+		 */
+		hostname = pstrdup("huggingface.co");
+	}
+	else
+	{
+		if (strncmp(path, HTTP_URL_PREFIX, strlen(HTTP_URL_PREFIX)) == 0)
+			host = path + strlen(HTTP_URL_PREFIX);
+		else if (strncmp(path, HTTPS_URL_PREFIX, strlen(HTTPS_URL_PREFIX)) == 0)
+			host = path + strlen(HTTPS_URL_PREFIX);
+		else
+			return;
+
+		/* the authority component ends at the first '/', '?' or '#' */
+		hostEnd = host + strcspn(host, "/?#");
+
+		/* drop optional userinfo (up to the last '@' in the authority) */
+		for (p = host; p < hostEnd; p++)
+		{
+			if (*p == '@')
+				at = p;
+		}
+		if (at != NULL)
+			host = at + 1;
+
+		/* drop optional ':port' */
+		for (p = host; p < hostEnd; p++)
+		{
+			if (*p == ':')
+			{
+				hostEnd = p;
+				break;
+			}
+		}
+
+		if (hostEnd <= host)
+			ereport(ERROR,
+					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+					 errmsg("could not determine host from URL \"%s\"", path)));
+
+		hostname = pnstrdup(host, hostEnd - host);
+	}
+
+	LowerCaseInPlace(hostname);
+
+	list = pstrdup(PgLakeAllowedEndpointSuffixes);
+	token = list;
+	while (token != NULL && *token != '\0')
+	{
+		char	   *comma = strchr(token, ',');
+		char	   *suffix = token;
+		size_t		slen;
+
+		if (comma != NULL)
+		{
+			*comma = '\0';
+			token = comma + 1;
+		}
+		else
+			token = NULL;
+
+		/* trim surrounding whitespace */
+		while (*suffix == ' ' || *suffix == '\t')
+			suffix++;
+		slen = strlen(suffix);
+		while (slen > 0 && (suffix[slen - 1] == ' ' || suffix[slen - 1] == '\t'))
+			suffix[--slen] = '\0';
+
+		if (slen == 0)
+			continue;
+
+		LowerCaseInPlace(suffix);
+
+		if (pg_str_endswith(hostname, suffix))
+		{
+			size_t		hlen = strlen(hostname);
+
+			/* require a full match or a dot boundary before the suffix */
+			if (hlen == slen || hostname[hlen - slen - 1] == '.')
+			{
+				allowed = true;
+				break;
+			}
+		}
+	}
+
+	if (!allowed)
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+				 errmsg("endpoint host \"%s\" is not allowed", hostname),
+				 errdetail("pg_lake.allowed_endpoint_suffixes restricts http://, "
+						   "https:// and hf:// URLs to the configured hostname suffixes.")));
+}
+
+
+/*
  * GetPgLakeStageLocation returns the base URL configured for @STAGE/ resolution,
  * with trailing slash removed if present.
  */

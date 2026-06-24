@@ -177,6 +177,8 @@ ProcessCreateFromFile(CreateStmt *createStmt,
 								   "currently supported")));
 		}
 
+		ErrorIfDisallowedEndpoint(definitionFromURL);
+
 		/* determine format & compression to make DESCRIBE more precise */
 		FindDataFormatAndCompression(tableType, definitionFromURL, options, &format, &compression);
 
@@ -197,6 +199,8 @@ ProcessCreateFromFile(CreateStmt *createStmt,
 							errmsg("pg_lake_copy: only s3://, gs://, az://, azure://, and abfss:// URLs are "
 								   "currently supported")));
 		}
+
+		ErrorIfDisallowedEndpoint(loadFromURL);
 
 		/* determine format & compression to make DESCRIBE more precise */
 		FindDataFormatAndCompression(tableType, loadFromURL, options, &format, &compression);

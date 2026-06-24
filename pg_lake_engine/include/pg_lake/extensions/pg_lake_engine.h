@@ -28,6 +28,7 @@
 
 extern PGDLLEXPORT bool EnableHeavyAsserts;
 extern PGDLLEXPORT char *PgLakeStageLocation;
+extern PGDLLEXPORT char *PgLakeAllowedEndpointSuffixes;
 
 /* cached extension IDs for pg_lake_engine */
 extern PGDLLEXPORT CachedExtensionIds * PgLakeEngine;

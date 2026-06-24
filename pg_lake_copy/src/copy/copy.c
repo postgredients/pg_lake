@@ -412,6 +412,7 @@ ProcessPgLakeCopyFrom(CopyStmt *copyStmt, ParseState *pstate, Relation relation,
 	if (IsSupportedURL(sourcePath))
 	{
 		CheckURLReadAccess();
+		ErrorIfDisallowedEndpoint(sourcePath);
 	}
 
 	/*
@@ -793,6 +794,7 @@ ProcessPgLakeCopyTo(CopyStmt *copyStmt, ParseState *pstate, Relation relation,
 	if (IsSupportedURL(copyStmt->filename))
 	{
 		CheckURLWriteAccess();
+		ErrorIfDisallowedEndpoint(copyStmt->filename);
 	}
 
 	/*

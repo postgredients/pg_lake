@@ -86,6 +86,67 @@ def test_pg_lake_iceberg_table_metadata(
     assert metadata["snapshot-log"][3]["snapshot-id"] == snapshots[3]["snapshot-id"]
 
 
+def test_allowed_endpoint_suffixes(superuser_conn, iceberg_extension, s3):
+    # pg_lake.allowed_endpoint_suffixes restricts the host of http(s):// and
+    # hf:// URLs to the configured suffixes, which is how a managed service
+    # prevents SSRF to arbitrary hosts through pgduck_server's httpfs.
+    superuser_conn.autocommit = True
+    try:
+        run_command(
+            "SET pg_lake.allowed_endpoint_suffixes = 'storage.yandexcloud.net'",
+            superuser_conn,
+        )
+
+        # arbitrary host (e.g. the cloud metadata endpoint) is rejected
+        error = run_query(
+            "SELECT lake_iceberg.metadata('https://169.254.169.254/latest/meta-data/')",
+            superuser_conn,
+            raise_error=False,
+        )
+        assert "is not allowed" in str(error)
+
+        # a look-alike host without a dot boundary is rejected
+        error = run_query(
+            "SELECT lake_iceberg.metadata('https://evilstorage.yandexcloud.net/m.json')",
+            superuser_conn,
+            raise_error=False,
+        )
+        assert "is not allowed" in str(error)
+
+        # an allowed suffix passes the endpoint check (it may still fail later
+        # while fetching, but not with our restriction error)
+        error = run_query(
+            "SELECT lake_iceberg.metadata('https://files.storage.yandexcloud.net/m.json')",
+            superuser_conn,
+            raise_error=False,
+        )
+        assert "is not allowed" not in str(error)
+
+        # s3:// is not restricted by this GUC: the endpoint comes from the
+        # pgduck_server secret, not from the URL
+        error = run_query(
+            f"SELECT lake_iceberg.metadata('s3://{TEST_BUCKET}/no-such-object/m.json')",
+            superuser_conn,
+            raise_error=False,
+        )
+        assert "is not allowed" not in str(error)
+
+        # an empty value disables the restriction
+        run_command(
+            "SET pg_lake.allowed_endpoint_suffixes = ''",
+            superuser_conn,
+        )
+        error = run_query(
+            "SELECT lake_iceberg.metadata('https://evil.example.com/m.json')",
+            superuser_conn,
+            raise_error=False,
+        )
+        assert "is not allowed" not in str(error)
+    finally:
+        run_command("RESET pg_lake.allowed_endpoint_suffixes", superuser_conn)
+        superuser_conn.autocommit = False
+
+
 def test_pg_lake_iceberg_snapshots(
     installcheck, metadata_location, superuser_conn, duckdb_conn, iceberg_extension, s3
 ):
