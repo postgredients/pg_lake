@@ -129,9 +129,7 @@ def test_allowed_endpoint_suffixes(superuser_conn, iceberg_extension, s3):
     )
 
     # an empty value disables the restriction
-    assert "is not allowed" not in metadata_error(
-        "", "https://evil.example.com/m.json"
-    )
+    assert "is not allowed" not in metadata_error("", "https://evil.example.com/m.json")
 
 
 def test_pg_lake_iceberg_snapshots(
